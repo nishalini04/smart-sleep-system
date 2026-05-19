@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SleepEnv AI · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg0: #06070f;
+    --bg1: #0c0e1a;
+    --bg2: #111525;
+    --bg3: #171c2e;
+    --border: rgba(120,140,255,0.1);
+    --accent-blue: #5b8af5;
+    --accent-violet: #9b6fff;
+    --accent-teal: #3dd9c0;
+    --accent-rose: #f56b8a;
+    --accent-amber: #f5b942;
+    --text0: #e8ecff;
+    --text1: #a0a8cc;
+    --text2: #5a6080;
+    --stage-awake: #f5b942;
+    --stage-light: #5b8af5;
+    --stage-deep: #9b6fff;
+    --stage-rem: #3dd9c0;
+    --font-display: 'DM Serif Display', serif;
+    --font-mono: 'DM Mono', monospace;
+    --font-body: 'Inter', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 14px; }
+  body {
+    background: var(--bg0);
+    color: var(--text0);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── STARS BACKGROUND ── */
+  .stars {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(1px 1px at 20% 15%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 25%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 40% 60%, rgba(255,255,255,0.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 70%, rgba(255,255,255,0.35) 0%, transparent 100%),
+      radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(2px 2px at 55% 45%, rgba(150,170,255,0.3) 0%, transparent 100%),
+      radial-gradient(2px 2px at 90% 10%, rgba(150,170,255,0.2) 0%, transparent 100%);
+  }
+  .nebula {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 80% 40% at 15% 20%, rgba(91,138,245,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 85% 80%, rgba(155,111,255,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 60% at 50% 50%, rgba(61,217,192,0.03) 0%, transparent 70%);
+  }
+
+  /* ── LAYOUT ── */
+  .app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px 28px; }
+
+  /* ── HEADER ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 28px; border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .logo { display: flex; align-items: baseline; gap: 10px; }
+  .logo-title {
+    font-family: var(--font-display); font-size: 1.7rem; color: var(--text0);
+    letter-spacing: -0.5px;
+  }
+  .logo-sub { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text2); letter-spacing: 2px; text-transform: uppercase; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .connection-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent-teal);
+    box-shadow: 0 0 6px var(--accent-teal);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .connection-dot.offline { background: var(--accent-rose); box-shadow: 0 0 6px var(--accent-rose); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .live-badge {
+    font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 2px;
+    color: var(--accent-teal); text-transform: uppercase;
+  }
+  .clock { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text1); }
+
+  /* ── STAGE HERO ── */
+  .stage-hero {
+    display: flex; align-items: center; justify-content: center;
+    gap: 48px; padding: 36px 0 32px;
+    border-bottom: 1px solid var(--border); margin-bottom: 28px;
+  }
+  .stage-ring-wrap { position: relative; width: 160px; height: 160px; flex-shrink: 0; }
+  .stage-ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .stage-ring-bg { fill: none; stroke: var(--bg3); stroke-width: 10; }
+  .stage-ring-fill {
+    fill: none; stroke-width: 10; stroke-linecap: round;
+    stroke-dasharray: 440; stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1), stroke 0.8s ease;
+  }
+  .stage-ring-label {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .stage-name { font-family: var(--font-display); font-size: 1.4rem; line-height: 1; }
+  .stage-sub { font-family: var(--font-mono); font-size: 0.55rem; color: var(--text2); letter-spacing: 2px; margin-top: 4px; }
+  .stage-right { display: flex; flex-direction: column; gap: 12px; }
+  .prob-bars { display: flex; flex-direction: column; gap: 8px; min-width: 220px; }
+  .prob-row { display: flex; align-items: center; gap: 8px; }
+  .prob-label { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text2); width: 40px; text-transform: uppercase; }
+  .prob-track {
+    flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden;
+  }
+  .prob-bar { height: 100%; border-radius: 2px; transition: width 1s ease; }
+  .prob-val { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text1); width: 30px; text-align: right; }
+  .score-block { text-align: center; }
+  .score-big { font-family: var(--font-display); font-size: 3.5rem; line-height: 1; }
+  .score-label { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text2); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+
+  /* ── GRID ── */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 1100px) { .grid-4 { grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 900px) { .grid-3, .grid-2 { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .grid-3, .grid-4, .grid-2 { grid-template-columns: 1fr; } .stage-hero { flex-direction: column; gap: 20px; } }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, transform 0.2s;
+  }
+  .card:hover { border-color: rgba(91,138,245,0.2); transform: translateY(-1px); }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(91,138,245,0.2), transparent);
+  }
+  .card-label {
+    font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--text2); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .card-label span { width: 4px; height: 4px; border-radius: 50%; display: inline-block; }
+  .metric-val { font-family: var(--font-display); font-size: 2.2rem; line-height: 1; }
+  .metric-unit { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text2); margin-left: 4px; }
+  .metric-sub { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text2); margin-top: 4px; }
+  .metric-trend {
+    font-family: var(--font-mono); font-size: 0.6rem; margin-top: 6px;
+    display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .trend-up { color: var(--accent-teal); background: rgba(61,217,192,0.1); }
+  .trend-down { color: var(--accent-rose); background: rgba(245,107,138,0.1); }
+  .trend-stable { color: var(--text2); background: var(--bg3); }
+
+  /* ── ENV CONTROL CARDS ── */
+  .env-card { display: flex; flex-direction: column; gap: 12px; }
+  .env-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .env-name { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text1); }
+  .env-val { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text0); }
+  .env-bar-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .env-bar-fill { height: 100%; border-radius: 3px; transition: width 1.5s ease, background 1s; }
+
+  /* ── HYPNOGRAM ── */
+  .hypnogram-wrap { height: 120px; position: relative; }
+  #hypnogram { width: 100%; height: 100%; }
+
+  /* ── MINI CHART ── */
+  .mini-chart { height: 64px; position: relative; margin-top: 8px; }
+  .mini-chart canvas { width: 100% !important; height: 100% !important; }
+
+  /* ── OVERRIDE PANEL ── */
+  .override-panel { padding: 18px; }
+  .override-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
+  .override-row { display: flex; flex-direction: column; gap: 6px; }
+  .override-label { font-family: var(--font-mono); font-size: 0.58rem; color: var(--text2); text-transform: uppercase; letter-spacing: 1.5px; }
+  .override-input {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text0); font-family: var(--font-mono); font-size: 0.75rem;
+    padding: 6px 10px; border-radius: 8px; outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .override-input:focus { border-color: var(--accent-blue); }
+  input[type=range].override-input { padding: 8px 0; cursor: pointer; }
+  .btn-send {
+    grid-column: 1/-1; background: linear-gradient(135deg, var(--accent-blue), var(--accent-violet));
+    color: #fff; font-family: var(--font-mono); font-size: 0.68rem;
+    letter-spacing: 2px; text-transform: uppercase;
+    border: none; border-radius: 10px; padding: 10px;
+    cursor: pointer; transition: opacity 0.2s, transform 0.2s;
+  }
+  .btn-send:hover { opacity: 0.85; transform: scale(1.01); }
+  .btn-send:active { transform: scale(0.98); }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-family: var(--font-display); font-size: 1.05rem; color: var(--text0);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── SCROLL AREA ── */
+  .event-log {
+    height: 160px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 6px;
+    font-family: var(--font-mono); font-size: 0.63rem;
+    scrollbar-width: thin; scrollbar-color: var(--bg3) transparent;
+  }
+  .log-entry { display: flex; gap: 8px; padding: 4px 8px; border-radius: 6px; background: var(--bg2); }
+  .log-ts { color: var(--text2); flex-shrink: 0; }
+  .log-msg { color: var(--text1); }
+  .log-stage-awake { color: var(--stage-awake); }
+  .log-stage-light { color: var(--stage-light); }
+  .log-stage-deep { color: var(--stage-deep); }
+  .log-stage-rem { color: var(--stage-rem); }
+
+  /* ── FOOTER ── */
+  footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .footer-text { font-family: var(--font-mono); font-size: 0.58rem; color: var(--text2); letter-spacing: 1px; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .card { animation: fadeIn 0.5s ease both; }
+  .card:nth-child(1){animation-delay:0.05s} .card:nth-child(2){animation-delay:0.1s}
+  .card:nth-child(3){animation-delay:0.15s} .card:nth-child(4){animation-delay:0.2s}
+  /* ───────── BIGGER UI FONT OVERRIDE ───────── */
+
+html {
+  font-size: 18px;
+}
+
+body {
+  font-size: 1.05rem;
+}
+
+/* Header */
+.logo-title {
+  font-size: 2.8rem !important;
+}
+
+.logo-sub {
+  font-size: 0.95rem !important;
+}
+
+.clock {
+  font-size: 1rem !important;
+}
+
+.live-badge {
+  font-size: 0.8rem !important;
+}
+
+/* Section titles */
+.section-title {
+  font-size: 2rem !important;
+  margin-bottom: 22px !important;
+}
+
+/* Cards */
+.card-label {
+  font-size: 0.95rem !important;
+}
+
+.metric-val {
+  font-size: 3.5rem !important;
+}
+
+.metric-unit {
+  font-size: 1rem !important;
+}
+
+.metric-sub {
+  font-size: 0.9rem !important;
+  margin-top: 8px !important;
+}
+
+/* Stage Hero */
+.stage-name {
+  font-size: 2.5rem !important;
+}
+
+.stage-sub {
+  font-size: 0.8rem !important;
+}
+
+.score-big {
+  font-size: 5.5rem !important;
+}
+
+.score-label {
+  font-size: 0.85rem !important;
+}
+
+/* Probability bars */
+.prob-label {
+  font-size: 0.8rem !important;
+}
+
+.prob-val {
+  font-size: 0.8rem !important;
+}
+
+/* Environment rows */
+.env-name {
+  font-size: 0.85rem !important;
+}
+
+.env-val {
+  font-size: 0.9rem !important;
+}
+
+/* Override panel */
+.override-label {
+  font-size: 0.8rem !important;
+}
+
+.override-input {
+  font-size: 1rem !important;
+  padding: 10px 12px !important;
+}
+
+.btn-send {
+  font-size: 0.9rem !important;
+  padding: 14px !important;
+}
+
+/* Event log */
+.event-log {
+  font-size: 0.85rem !important;
+}
+
+/* Footer */
+.footer-text {
+  font-size: 0.8rem !important;
+}
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<div class="nebula"></div>
+
+<div class="app">
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <span class="logo-title">SleepEnv<em> AI</em></span>
+      <span class="logo-sub">Adaptive Environment System</span>
+    </div>
+    <div class="header-right">
+      <div class="connection-dot" id="connDot"></div>
+      <span class="live-badge" id="connLabel">Connecting</span>
+      <span class="clock" id="clock">--:--:--</span>
+    </div>
+  </header>
+
+  <!-- STAGE HERO -->
+  <div class="stage-hero">
+    <div class="stage-ring-wrap">
+      <svg viewBox="0 0 160 160">
+        <circle class="stage-ring-bg" cx="80" cy="80" r="70"/>
+        <circle class="stage-ring-fill" id="stageRing" cx="80" cy="80" r="70" stroke="var(--accent-violet)"/>
+      </svg>
+      <div class="stage-ring-label">
+        <span class="stage-name" id="stageName" style="color:var(--accent-violet)">—</span>
+        <span class="stage-sub">SLEEP STAGE</span>
+      </div>
+    </div>
+
+    <div class="prob-bars">
+      <div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--text2);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">Stage Probabilities</div>
+      <div class="prob-row">
+        <span class="prob-label">AWAKE</span>
+        <div class="prob-track"><div class="prob-bar" id="pb0" style="width:0%;background:var(--stage-awake)"></div></div>
+        <span class="prob-val" id="pv0">0%</span>
+      </div>
+      <div class="prob-row">
+        <span class="prob-label">LIGHT</span>
+        <div class="prob-track"><div class="prob-bar" id="pb1" style="width:0%;background:var(--stage-light)"></div></div>
+        <span class="prob-val" id="pv1">0%</span>
+      </div>
+      <div class="prob-row">
+        <span class="prob-label">DEEP</span>
+        <div class="prob-track"><div class="prob-bar" id="pb2" style="width:0%;background:var(--stage-deep)"></div></div>
+        <span class="prob-val" id="pv2">0%</span>
+      </div>
+      <div class="prob-row">
+        <span class="prob-label">REM</span>
+        <div class="prob-track"><div class="prob-bar" id="pb3" style="width:0%;background:var(--stage-rem)"></div></div>
+        <span class="prob-val" id="pv3">0%</span>
+      </div>
+    </div>
+
+    <div class="score-block">
+      <div class="score-big" id="sleepScore" style="color:var(--accent-teal)">—</div>
+      <div class="score-label">Sleep Score</div>
+    </div>
+  </div>
+
+  <!-- VITALS ROW -->
+  <div class="section-title">Biometrics</div>
+  <div class="grid-4">
+    <div class="card">
+      <div class="card-label"><span style="background:var(--accent-rose)"></span>Heart Rate</div>
+      <div><span class="metric-val" id="hrVal">—</span><span class="metric-unit">bpm</span></div>
+      <div class="metric-sub">Resting pulse</div>
+      <div class="mini-chart"><canvas id="hrChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span style="background:var(--accent-blue)"></span>SpO₂</div>
+      <div><span class="metric-val" id="spo2Val">—</span><span class="metric-unit">%</span></div>
+      <div class="metric-sub">Blood oxygen</div>
+      <div class="mini-chart"><canvas id="spo2Chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span style="background:var(--accent-violet)"></span>Movement</div>
+      <div><span class="metric-val" id="movVal">—</span><span class="metric-unit">g</span></div>
+      <div class="metric-sub">Restlessness index</div>
+      <div class="mini-chart"><canvas id="movChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span style="background:var(--accent-amber)"></span>HRV Proxy</div>
+      <div><span class="metric-val" id="hrvVal">—</span><span class="metric-unit">ms</span></div>
+      <div class="metric-sub">Variability estimate</div>
+      <div class="mini-chart"><canvas id="hrvChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ENVIRONMENT ROW -->
+  <div class="section-title">Environment</div>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-label"><span style="background:var(--accent-amber)"></span>Temperature</div>
+      <div><span class="metric-val" id="tempVal">—</span><span class="metric-unit">°C</span></div>
+      <div class="metric-sub">Target: <span id="tempTarget">—</span>°C · Bed: <span id="bedTemp">—</span>°C</div>
+      <div style="margin-top:10px">
+        <div class="env-bar-track"><div class="env-bar-fill" id="tempBar" style="width:0%;background:var(--accent-amber)"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span style="background:var(--accent-teal)"></span>Humidity</div>
+      <div><span class="metric-val" id="humVal">—</span><span class="metric-unit">%</span></div>
+      <div class="metric-sub">Relative humidity</div>
+      <div style="margin-top:10px">
+        <div class="env-bar-track"><div class="env-bar-fill" id="humBar" style="width:0%;background:var(--accent-teal)"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label"><span style="background:var(--accent-blue)"></span>Light & Noise</div>
+      <div style="display:flex;gap:20px">
+        <div><span class="metric-val" id="lightVal" style="font-size:1.5rem">—</span><span class="metric-unit">lx%</span></div>
+        <div><span class="metric-val" id="noiseVal" style="font-size:1.5rem">—</span><span class="metric-unit">dB</span></div>
+      </div>
+      <div class="metric-sub">Ambient light · Noise level</div>
+    </div>
+  </div>
+
+  <!-- ACTUATORS + HYPNOGRAM -->
+  <div class="grid-2">
+    <!-- Actuator Status -->
+    <div class="card env-card">
+      <div class="card-label"><span style="background:var(--accent-teal)"></span>Actuator Status</div>
+      <div class="env-row">
+        <span class="env-name">🌀 Fan Speed</span>
+        <div class="env-bar-track"><div class="env-bar-fill" id="fanBar" style="width:0%;background:var(--accent-teal)"></div></div>
+        <span class="env-val" id="fanVal">—</span>
+      </div>
+      <div class="env-row">
+        <span class="env-name">💡 Light</span>
+        <div class="env-bar-track"><div class="env-bar-fill" id="lightBarE" style="width:0%;background:var(--accent-amber)"></div></div>
+        <span class="env-val" id="lightValE">—</span>
+      </div>
+      <div class="env-row">
+        <span class="env-name">🎵 White Noise</span>
+        <div class="env-bar-track"><div class="env-bar-fill" id="noiseBar" style="width:0%;background:var(--accent-violet)"></div></div>
+        <span class="env-val" id="noiseValE">—</span>
+      </div>
+      <div class="env-row">
+        <span class="env-name">💨 Ventilation</span>
+        <div class="env-bar-track"><div class="env-bar-fill" id="ventBar" style="width:0%;background:var(--accent-blue)"></div></div>
+        <span class="env-val" id="ventVal">—</span>
+      </div>
+      <div class="env-row">
+        <span class="env-name">🌡 Color Temp</span>
+        <div class="env-bar-track"><div class="env-bar-fill" id="ctBar" style="width:0%;background:linear-gradient(90deg,#f5b942,#5b8af5)"></div></div>
+        <span class="env-val" id="ctVal">—</span>
+      </div>
+    </div>
+
+    <!-- Hypnogram -->
+    <div class="card">
+      <div class="card-label"><span style="background:var(--accent-violet)"></span>Sleep Hypnogram</div>
+      <div class="hypnogram-wrap">
+        <canvas id="hypnogram"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- MANUAL OVERRIDE + EVENT LOG -->
+  <div class="grid-2">
+    <div class="card override-panel">
+      <div class="card-label"><span style="background:var(--accent-rose)"></span>Manual Override</div>
+      <div class="override-grid">
+        <div class="override-row">
+          <label class="override-label">Target Temp (°C)</label>
+          <input class="override-input" type="number" id="ov_temp" value="20" min="16" max="28" step="0.5">
+        </div>
+        <div class="override-row">
+          <label class="override-label">Fan Speed (0–255)</label>
+          <input class="override-input" type="range" id="ov_fan" min="0" max="255" value="80">
+        </div>
+        <div class="override-row">
+          <label class="override-label">Light Brightness (0–255)</label>
+          <input class="override-input" type="range" id="ov_light" min="0" max="255" value="20">
+        </div>
+        <div class="override-row">
+          <label class="override-label">White Noise (0–255)</label>
+          <input class="override-input" type="range" id="ov_noise" min="0" max="255" value="100">
+        </div>
+        <button class="btn-send" onclick="sendOverride()">⚙ Send Override Command</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label"><span style="background:var(--accent-blue)"></span>Event Log</div>
+      <div class="event-log" id="eventLog"></div>
+    </div>
+  </div>
+
+  <footer>
+    <span class="footer-text">AI ADAPTIVE SLEEP ENVIRONMENT SYSTEM · ESP32 + MAX30102 + MPU6050</span>
+    <span class="footer-text" id="lastUpdate">Last update: —</span>
+  </footer>
+</div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────
+const API = "http://localhost:5000/api";
+const POLL_MS = 5000;
+
+// ─── Mini chart history buffers ──────────────────────────
+const history = { hr: [], spo2: [], mov: [], hrv: [] };
+const MAX_HIST = 30;
+
+// ─── Stage meta ──────────────────────────────────────────
+const STAGE_META = {
+  AWAKE: { color: "var(--stage-awake)", ringPct: 0.15 },
+  LIGHT: { color: "var(--stage-light)", ringPct: 0.50 },
+  DEEP:  { color: "var(--stage-deep)",  ringPct: 0.85 },
+  REM:   { color: "var(--stage-rem)",   ringPct: 0.70 },
+};
+
+// ─── Hypnogram data ──────────────────────────────────────
+const hypoData = [];  // {t, stage: 0-3}
+const STAGE_Y = { AWAKE:0, LIGHT:1, DEEP:3, REM:2 };
+
+// ─── Clock ───────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById("clock").textContent =
+    new Date().toLocaleTimeString("en-GB");
+}, 1000);
+
+// ─── Fetch & Render ──────────────────────────────────────
+async function fetchStatus() {
+  try {
+    const r = await fetch(`${API}/status`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    renderAll(d);
+    setConnected(true);
+  } catch (e) {
+    setConnected(false);
+    addLog("error", `Connection failed: ${e.message}`);
+  }
+}
+
+function renderAll(d) {
+  const stage = d.stage || "AWAKE";
+  const meta  = STAGE_META[stage] || STAGE_META.AWAKE;
+  const s     = d.sensors || {};
+  const env   = d.environment || {};
+  const proba = d.probabilities || {};
+
+  // Stage ring
+  const circ = 2 * Math.PI * 70;
+  const dash  = circ * (1 - meta.ringPct);
+  const ring  = document.getElementById("stageRing");
+  ring.style.stroke = meta.color;
+  ring.style.strokeDashoffset = dash;
+  const sn = document.getElementById("stageName");
+  sn.textContent = stage;
+  sn.style.color = meta.color;
+
+  // Prob bars
+  ["AWAKE","LIGHT","DEEP","REM"].forEach((lbl, i) => {
+    const pct = Math.round((proba[lbl] || 0) * 100);
+    document.getElementById(`pb${i}`).style.width = pct + "%";
+    document.getElementById(`pv${i}`).textContent = pct + "%";
+  });
+
+  // Sleep score
+  if (d.sleep_score != null) {
+    document.getElementById("sleepScore").textContent = d.sleep_score;
+  }
+
+  // Vitals
+  const hr  = s.hr > 0 ? s.hr : "—";
+  const spo = s.spo2 > 0 ? s.spo2.toFixed(1) : "—";
+  const mov = s.movement != null ? s.movement.toFixed(3) : "—";
+  const hrv = hr !== "—" ? Math.round(1000 / hr * 0.6 * 100) : "—";
+
+  document.getElementById("hrVal").textContent = hr;
+  document.getElementById("spo2Val").textContent = spo;
+  document.getElementById("movVal").textContent = mov;
+  document.getElementById("hrvVal").textContent = hrv;
+
+  // Push history
+  if (hr !== "—")  push(history.hr,  hr);
+  if (spo !== "—") push(history.spo2, parseFloat(spo));
+  if (mov !== "—") push(history.mov,  parseFloat(mov));
+  if (hrv !== "—") push(history.hrv,  hrv);
+
+  drawMiniChart("hrChart",   history.hr,   "rgba(245,107,138,0.7)");
+  drawMiniChart("spo2Chart", history.spo2, "rgba(91,138,245,0.7)");
+  drawMiniChart("movChart",  history.mov,  "rgba(155,111,255,0.7)");
+  drawMiniChart("hrvChart",  history.hrv,  "rgba(245,185,66,0.7)");
+
+  // Env sensors
+  document.getElementById("tempVal").textContent = s.air_temp != null ? s.air_temp.toFixed(1) : "—";
+  document.getElementById("tempTarget").textContent = env.target_temp != null ? env.target_temp.toFixed(1) : "—";
+  document.getElementById("bedTemp").textContent = s.bed_temp != null ? s.bed_temp.toFixed(1) : "—";
+  document.getElementById("humVal").textContent = s.humidity != null ? Math.round(s.humidity) : "—";
+  document.getElementById("lightVal").textContent = s.light != null ? s.light : "—";
+  document.getElementById("noiseVal").textContent = s.noise != null ? s.noise : "—";
+
+  if (s.air_temp) document.getElementById("tempBar").style.width = Math.min((s.air_temp - 15) / 15 * 100, 100) + "%";
+  if (s.humidity) document.getElementById("humBar").style.width = Math.min(s.humidity, 100) + "%";
+
+  // Actuators
+  const fan = env.fan_speed || 0;
+  const lb  = env.light_bright || 0;
+  const nb  = env.noise_level || 0;
+  const ct  = env.light_ct || 0;
+  const vent= env.ventilation;
+  document.getElementById("fanBar").style.width = (fan / 255 * 100) + "%";
+  document.getElementById("lightBarE").style.width = (lb / 255 * 100) + "%";
+  document.getElementById("noiseBar").style.width = (nb / 255 * 100) + "%";
+  document.getElementById("ventBar").style.width = vent ? "100%" : "0%";
+  document.getElementById("ctBar").style.width = (ct / 255 * 100) + "%";
+  document.getElementById("fanVal").textContent = fan;
+  document.getElementById("lightValE").textContent = lb;
+  document.getElementById("noiseValE").textContent = nb;
+  document.getElementById("ventVal").textContent = vent ? "ON" : "OFF";
+  document.getElementById("ctVal").textContent = ct > 128 ? "Cool" : "Warm";
+
+  // Hypnogram
+  hypoData.push({ t: Date.now(), stage });
+  if (hypoData.length > 120) hypoData.shift();
+  drawHypnogram();
+
+  // Log
+  addLog(stage, `Stage: ${stage} | HR: ${hr} bpm | SpO₂: ${spo}% | Move: ${mov}`);
+  document.getElementById("lastUpdate").textContent =
+    "Last update: " + new Date().toLocaleTimeString("en-GB");
+}
+
+function push(arr, val) {
+  arr.push(val);
+  if (arr.length > MAX_HIST) arr.shift();
+}
+
+// ─── Mini Sparkline Chart ─────────────────────────────────
+function drawMiniChart(id, data, color) {
+  const canvas = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = canvas.offsetWidth  * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (data.length < 2) return;
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  const min = Math.min(...data) * 0.98;
+  const max = Math.max(...data) * 1.02 || 1;
+  const x = (i) => (i / (data.length - 1)) * w;
+  const y = (v) => h - ((v - min) / (max - min)) * h;
+
+  // Fill
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, color.replace("0.7","0.25"));
+  grad.addColorStop(1, color.replace("0.7","0.02"));
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(data[0]));
+  for (let i = 1; i < data.length; i++) {
+    const px = x(i-1), py = y(data[i-1]);
+    const cx = (px + x(i)) / 2;
+    ctx.bezierCurveTo(cx, py, cx, y(data[i]), x(i), y(data[i]));
+  }
+  ctx.lineTo(x(data.length-1), h);
+  ctx.lineTo(x(0), h);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(data[0]));
+  for (let i = 1; i < data.length; i++) {
+    const px = x(i-1), py = y(data[i-1]);
+    const cx = (px + x(i)) / 2;
+    ctx.bezierCurveTo(cx, py, cx, y(data[i]), x(i), y(data[i]));
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+// ─── Hypnogram ───────────────────────────────────────────
+function drawHypnogram() {
+  const canvas = document.getElementById("hypnogram");
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = canvas.offsetWidth  * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  const stages = ["AWAKE","REM","LIGHT","DEEP"];
+  const stageH = h / 4;
+
+  // Grid lines + labels
+  ctx.font = `${9 * dpr / dpr}px "DM Mono"`;
+  ctx.fillStyle = "rgba(160,168,204,0.4)";
+  stages.forEach((s, i) => {
+    const y = h - (i + 1) * stageH;
+    ctx.fillStyle = "rgba(160,168,204,0.25)";
+    ctx.fillRect(0, y, w, stageH);
+    ctx.fillStyle = "rgba(160,168,204,0.5)";
+    ctx.fillText(s, 4, y + stageH / 2 + 3);
+  });
+
+  if (hypoData.length < 2) return;
+
+  const COLORS = {
+    AWAKE: "var(--stage-awake)", LIGHT: "var(--stage-light)",
+    DEEP:  "var(--stage-deep)",  REM:   "var(--stage-rem)"
+  };
+  const stageToY = (s) => h - (stages.indexOf(s) + 0.5) * stageH;
+
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = "round";
+
+  for (let i = 1; i < hypoData.length; i++) {
+    const x0 = ((i-1) / (hypoData.length - 1)) * w;
+    const x1 = (i / (hypoData.length - 1)) * w;
+    const y0 = stageToY(hypoData[i-1].stage);
+    const y1 = stageToY(hypoData[i].stage);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.strokeStyle = COLORS[hypoData[i].stage] || "#fff";
+    ctx.stroke();
+  }
+
+  // Current position dot
+  const last = hypoData[hypoData.length - 1];
+  ctx.beginPath();
+  ctx.arc(w - 5, stageToY(last.stage), 5, 0, Math.PI * 2);
+  ctx.fillStyle = COLORS[last.stage] || "#fff";
+  ctx.fill();
+}
+
+// ─── Event Log ───────────────────────────────────────────
+function addLog(stage, msg) {
+  const log = document.getElementById("eventLog");
+  const ts  = new Date().toLocaleTimeString("en-GB");
+  const stageClass = `log-stage-${stage.toLowerCase()}`;
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  entry.innerHTML = `<span class="log-ts">${ts}</span><span class="log-msg ${stageClass}">${msg}</span>`;
+  log.insertBefore(entry, log.firstChild);
+  while (log.children.length > 50) log.removeChild(log.lastChild);
+}
+
+// ─── Connection State ────────────────────────────────────
+function setConnected(ok) {
+  const dot = document.getElementById("connDot");
+  const lbl = document.getElementById("connLabel");
+  dot.className = "connection-dot" + (ok ? "" : " offline");
+  lbl.textContent = ok ? "Live" : "Offline";
+  lbl.style.color = ok ? "var(--accent-teal)" : "var(--accent-rose)";
+}
+
+// ─── Manual Override ─────────────────────────────────────
+async function sendOverride() {
+  const payload = {
+    target_temp:  parseFloat(document.getElementById("ov_temp").value),
+    fan_speed:    parseInt(document.getElementById("ov_fan").value),
+    light_bright: parseInt(document.getElementById("ov_light").value),
+    noise_level:  parseInt(document.getElementById("ov_noise").value),
+    light_ct: 60,
+    ventilation: false,
+  };
+  try {
+    await fetch(`${API}/override`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    addLog("LIGHT", "Manual override sent: " + JSON.stringify(payload));
+  } catch(e) {
+    addLog("error", "Override failed: " + e.message);
+  }
+}
+
+// ─── Simulate demo data when backend not available ────────
+function simulateData() {
+  const stages = ["AWAKE","LIGHT","LIGHT","DEEP","DEEP","DEEP","REM","LIGHT"];
+  const stage = stages[Math.floor(Date.now() / 10000) % stages.length];
+  const hr = 58 + Math.round(Math.sin(Date.now()/5000)*8);
+  const spo2 = 97 + (Math.random() - 0.5);
+  const mov = Math.abs(Math.sin(Date.now()/8000)) * 0.3;
+  const probs = {AWAKE:0.05, LIGHT:0.1, DEEP:0.8, REM:0.05};
+  if (stage === "REM") Object.assign(probs, {AWAKE:0.05,LIGHT:0.1,DEEP:0.05,REM:0.8});
+
+  renderAll({
+    stage, probabilities: probs, sleep_score: 78.5,
+    sensors: {
+      air_temp: 20.2 + Math.sin(Date.now()/20000)*0.5,
+      humidity: 52 + Math.sin(Date.now()/15000)*3,
+      bed_temp: 28.5, light: 2, noise: 34,
+      hr, spo2, movement: mov,
+    },
+    environment: {
+      target_temp: 19.0, fan_speed: 110, light_bright: 0,
+      light_ct: 20, noise_level: 120, ventilation: true,
+    }
+  });
+}
+
+// ─── Start polling ───────────────────────────────────────
+(async function init() {
+  addLog("LIGHT", "Dashboard initialised. Connecting to AI backend...");
+  try {
+    await fetchStatus();
+    setInterval(fetchStatus, POLL_MS);
+  } catch (e) {
+    addLog("AWAKE", "Backend offline — running simulation mode");
+    setConnected(false);
+    simulateData();
+    setInterval(simulateData, POLL_MS);
+    setInterval(() => setConnected(false), 1000);
+  }
+})();
+</script>
+</body>
+</html>
